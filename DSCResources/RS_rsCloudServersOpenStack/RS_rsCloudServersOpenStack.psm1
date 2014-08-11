@@ -366,7 +366,8 @@ Function Get-TargetResource
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$role,
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
     [Parameter][string]$validationKey,
-    [Parameter][string]$decryptionKey
+    [Parameter][string]$decryptionKey,
+    [Parameter][string]$EnvironmentName
     
   )
   @{
@@ -404,7 +405,8 @@ Function Test-TargetResource
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$role,
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
     [Parameter][string]$validationKey,
-    [Parameter][string]$decryptionKey
+    [Parameter][string]$decryptionKey,
+    [Parameter][string]$EnvironmentName
     
   )
   $Global:catalog = Get-ServiceCatalog
@@ -465,7 +467,8 @@ Function Set-TargetResource
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$role,
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
     [Parameter][string]$validationKey,
-    [Parameter][string]$decryptionKey
+    [Parameter][string]$decryptionKey,
+    [Parameter][string]$EnvironmentName
     
   )
   $Global:catalog = Get-ServiceCatalog
@@ -519,7 +522,7 @@ Function Set-TargetResource
           if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + ".mof")) {
             Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + "*") -Force
           }
-          powershell.exe (Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $missingServer, -ObjectGuid $createServer.server.id
+          powershell.exe ("C:\DevOps\Prod-Build-Scripts/" + $EnvironmentName + ".ps1") -Node $missingServer, -ObjectGuid $createServer.server.id
           #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $missingServer.id -MonitoringID $missingServer.id -MonitoringToken $agentToken
           
           Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Creating MOF file for server $missingServer"
@@ -532,7 +535,7 @@ Function Set-TargetResource
           ($newServerInfo | ? serverName -eq $missingServer).guid = $createServer.server.id
         }
         else {
-          $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id}
+          $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id; EnvironmentName = $EnvironmentName}
         }
         $logEntry = ("Spinning up Cloud server {0} with guid {1} {2} body {3}" -f $missingServer, $createServer.server.id, $createServer.server, $body)
         Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1002 -Message $logEntry
@@ -573,7 +576,7 @@ Function Set-TargetResource
         $updateList = @()
         $servers = Get-DevicesInEnvironment -dataCenter $dataCenter -environmentGuid $environmentGuid
         foreach($server in $servers) {
-          $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr)}
+          $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr); EnvironmentName = $EnvironmentName}
           $updateList += $value
         }
         $body = @{"servers" = @( $updateList )} | ConvertTo-Json -Depth 2
@@ -587,7 +590,7 @@ Function Set-TargetResource
       $updateList = @()
       $servers = Get-DevicesInEnvironment -dataCenter $dataCenter -environmentGuid $environmentGuid
       foreach($server in $servers) {
-        $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr)}
+        $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr); EnvironmentName = $EnvironmentName}
         $updateList += $value
       }
       $body = @{"servers" = @( $updateList )} | ConvertTo-Json -Depth 2
