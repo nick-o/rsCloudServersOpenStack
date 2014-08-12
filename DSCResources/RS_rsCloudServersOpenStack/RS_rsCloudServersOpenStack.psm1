@@ -1,6 +1,5 @@
 ﻿$VerbosePreference = "Continue"
 . "C:\cloud-automation\secrets.ps1"
-. "$($d.wD, $d.mR, "scriptData.ps1" -join '\')"
 
 Function Get-ServiceCatalog {
   return (Invoke-RestMethod -Uri $("https://identity.api.rackspacecloud.com/v2.0/tokens") -Method POST -Body $(@{"auth" = @{"RAX-KSKEY:apiKeyCredentials" = @{"username" = $($d.cU); "apiKey" = $($d.cAPI)}}} | convertTo-Json) -ContentType application/json)
@@ -161,7 +160,7 @@ Function Create-MonitoringEntity {
         if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + ".mof")) {
           Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + "*") -Force
         }
-        & $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $server.id -MonitoringID $server.id -MonitoringToken $agentToken
+        & $($d.wD, $d.mR, $($EnvironmentName + ".ps1")) -Node $server.name -ObjectGuid $server.id -MonitoringID $server.id -MonitoringToken $agentToken
         Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Hash Mismatch: Creating MOF file for server $($server.name) $($server.id)"
       }
       catch {
@@ -241,7 +240,8 @@ Function Create-Mofs {
     try {
       Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Creating MOF file for server $($server.serverName) `n  $agentToken `n $currentMofs `n $($server.id)"
       Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.guid + "*") -Force
-      & $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.serverName -ObjectGuid $server.guid -MonitoringID $server.guid -MonitoringToken $agentToken
+      ## remove scriptdata and add dynamic clientdsc
+      & $($d.wD, $d.mR, $($EnvironmentName + ".ps1")) -Node $server.serverName -ObjectGuid $server.guid -MonitoringID $server.guid -MonitoringToken $agentToken
       #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $server.id
     }
     catch {
@@ -522,7 +522,7 @@ Function Set-TargetResource
           if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + ".mof")) {
             Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + "*") -Force
           }
-          powershell.exe ("C:\DevOps\Prod-Build-Scripts/" + $EnvironmentName + ".ps1") -Node $missingServer, -ObjectGuid $createServer.server.id
+          powershell.exe $($d.wD, $d.mR, $($EnvironmentName + ".ps1")) -Node $missingServer, -ObjectGuid $createServer.server.id
           #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $missingServer.id -MonitoringID $missingServer.id -MonitoringToken $agentToken
           
           Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Creating MOF file for server $missingServer"
