@@ -538,7 +538,7 @@ Function Set-TargetResource
                ($newServerInfo | ? serverName -eq $missingServer).guid = $createServer.server.id
             }
             else {
-               $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id; EnvironmentName = $EnvironmentName}
+               $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id; "EnvironmentName" = $EnvironmentName}
             }
             $logEntry = ("Spinning up Cloud server {0} with guid {1} {2} body {3}" -f $missingServer, $createServer.server.id, $createServer.server, $body)
             Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1002 -Message $logEntry
@@ -579,7 +579,7 @@ Function Set-TargetResource
             $updateList = @()
             $servers = Get-DevicesInEnvironment -dataCenter $dataCenter -environmentGuid $environmentGuid
             foreach($server in $servers) {
-               $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr); EnvironmentName = $EnvironmentName}
+               $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr); "EnvironmentName" = $EnvironmentName}
                $updateList += $value
             }
             $body = @{"servers" = @( $updateList )} | ConvertTo-Json -Depth 2
@@ -593,7 +593,7 @@ Function Set-TargetResource
          $updateList = @()
          $servers = Get-DevicesInEnvironment -dataCenter $dataCenter -environmentGuid $environmentGuid
          foreach($server in $servers) {
-            $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr); EnvironmentName = $EnvironmentName}
+            $value = @{"serverName" = $server.name; "guid" = $server.id; "public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr); "EnvironmentName" = $EnvironmentName}
             $updateList += $value
          }
          $body = @{"servers" = @( $updateList )} | ConvertTo-Json -Depth 2
