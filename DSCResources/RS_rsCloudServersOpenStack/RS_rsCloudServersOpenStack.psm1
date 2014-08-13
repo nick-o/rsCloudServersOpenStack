@@ -384,6 +384,7 @@ Function Get-TargetResource
         decryptionKey = $decryptionKey
         Ensure = $Ensure
         BuildTimeOut = $BuildTimeOut
+        EnvironmentName = $EnvironmentName
 
     }
    
