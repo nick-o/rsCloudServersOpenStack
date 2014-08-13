@@ -160,7 +160,7 @@ Function Create-MonitoringEntity {
             if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + ".mof")) {
                Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + "*") -Force
             }
-            & $($d.wD, $d.mR, $($EnvironmentName + ".ps1")) -Node $server.name -ObjectGuid $server.id -MonitoringID $server.id -MonitoringToken $agentToken
+            & $($d.wD, $d.mR, $($environmentName + ".ps1")) -Node $server.name -ObjectGuid $server.id -MonitoringID $server.id -MonitoringToken $agentToken
             Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Hash Mismatch: Creating MOF file for server $($server.name) $($server.id)"
          }
          catch {
@@ -366,8 +366,8 @@ Function Get-TargetResource
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$role,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
       [Parameter][string]$validationKey,
-      [Parameter][string]$decryptionKey,
-      [Parameter][string]$EnvironmentName
+      [Parameter][string]$decryptionKey
+
       
    )
    @{
@@ -384,7 +384,6 @@ Function Get-TargetResource
         decryptionKey = $decryptionKey
         Ensure = $Ensure
         BuildTimeOut = $BuildTimeOut
-        EnvironmentName = $EnvironmentName
 
     }
    
@@ -406,8 +405,7 @@ Function Test-TargetResource
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$role,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
       [Parameter][string]$validationKey,
-      [Parameter][string]$decryptionKey,
-      [Parameter][string]$EnvironmentName
+      [Parameter][string]$decryptionKey
       
    )
    $Global:catalog = Get-ServiceCatalog
@@ -468,8 +466,7 @@ Function Set-TargetResource
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$role,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
       [Parameter][string]$validationKey,
-      [Parameter][string]$decryptionKey,
-      [Parameter][string]$EnvironmentName
+      [Parameter][string]$decryptionKey
       
    )
    $Global:catalog = Get-ServiceCatalog
