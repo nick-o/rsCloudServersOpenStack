@@ -4,23 +4,6 @@
 Function Get-ServiceCatalog {
    return (Invoke-RestMethod -Uri $("https://identity.api.rackspacecloud.com/v2.0/tokens") -Method POST -Body $(@{"auth" = @{"RAX-KSKEY:apiKeyCredentials" = @{"username" = $($d.cU); "apiKey" = $($d.cAPI)}}} | convertTo-Json) -ContentType application/json)
 }
-
-Function Test-PrefsContainer {
-   param (
-      [string]$container
-   )
-   if((Invoke-RestMethod -Uri "https://prefs.api.rackspacecloud.com/v1/" -Headers $AuthToken -Method Get -ContentType applicaton/json) -notcontains $container) {
-      return $false
-   }
-   else {
-      return $true
-   }
-}
-Function Check-Log {
-   if((Get-EventLog -List).Log -notcontains "DevOps") {
-      New-EventLog -LogName "DevOps" -Source "RS_rsCloudServersOpenStack"
-   }
-}
 Function Get-DevicesInEnvironment {
    param (
       [string]$dataCenter,
@@ -83,32 +66,6 @@ Function Get-DevicesInPreferences {
    catch {
       Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve devices from ServerMill preferences `n $($_.Exception.Message)"
    }
-}
-Function Find-MissingDevices {
-   param (
-      [string[]]$actualDevices,
-      [string[]]$configDevices
-   )
-   $missingDevices = @()
-   foreach($actualDevice in $actualDevices) {
-      if($configDevices -notcontains $actualDevice) {
-         $missingDevices += $actualDevice
-      }
-   }
-   write-verbose "Building list of Missing Servers"
-   foreach($missingDevice in $missingDevices) {
-      write-verbose "Find-MissingDevices $missingDevice"
-   }
-   return $missingDevices
-   
-}
-Function Update-PreferenceContainer {
-   param (
-      [string]$container,
-      [string]$body
-   )
-   $uri = ("https://prefs.api.rackspacecloud.com/v1/" + $container)
-   Invoke-RestMethod -Uri "https://prefs.api.rackspacecloud.com/v1/" -Headers $AuthToken -Body $body -Method Post -ContentType applicaton/json
 }
 Function Create-MonitoringEntity {
    param (
@@ -410,7 +367,6 @@ Function Test-TargetResource
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
-   Check-Log
    Write-Verbose "Test-TargetResource sending call to Test-Environment using $environmentGuid $minNumberOfDevices $maxNumberOfDevices $namingConvention $dataCenter"
    $testEnvironmentResults = Test-Environment -environmentGuid $environmentGuid -minNumberOfDevices $minNumberOfDevices -maxNumberOfDevices $maxNumberOfDevices -namingConvention $namingConvention -dataCenter $dataCenter -Ensure $Ensure
    $spinUpServerList = $testEnvironmentResults.spinUpServerList
@@ -424,10 +380,6 @@ Function Test-TargetResource
    $updatePrefsList = $testEnvironmentResults.updatePrefsList
    foreach($updatePrefsList1 in $updatePrefsList) {
       Write-Verbose "Test-TargetResource updatePresList $updatePrefsList1"
-   }
-   if($Ensure -eq "Present") {
-      Create-MonitoringEntity -environmentGuid $environmentGuid -dataCenter $dataCenter
-      Create-Mofs -environmentGuid $environmentGuid -dataCenter $dataCenter
    }
    if($Ensure -eq "Absent") {
       return $false
@@ -474,7 +426,6 @@ Function Set-TargetResource
    $imageUrl = ((($catalog.access.serviceCatalog | ? {$_.name -eq "cloudImages"}).endpoints) | ? {$_.region -eq $dataCenter}).publicURL
    $images = Invoke-RestMethod -Uri $($imageUrl + "/images") -Method Get -Headers $authToken -ContentType application/json
    $image = ($images.images | ? {$_.name -eq $image}).id
-   Check-Log
    if($Ensure -eq "Present") {
       # Load credentials and local variables
       . "C:\cloud-automation\secrets.ps1"
@@ -504,9 +455,6 @@ Function Set-TargetResource
       ### Spin up servers
       if($spinUpServerList) {
          write-verbose "spinUpServerList contains servers to spin up"
-         foreach($spinUpServerList1 in $spinUpServerList) {
-            write-verbose "SpinUpServer $spinUpServerList1"
-         }
          $newServerInfo = @()
          if($serverPrefsObject) {
             $newServerInfo += $serverPrefsObject
