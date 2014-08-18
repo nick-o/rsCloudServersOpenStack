@@ -4,23 +4,6 @@
 Function Get-ServiceCatalog {
    return (Invoke-RestMethod -Uri $("https://identity.api.rackspacecloud.com/v2.0/tokens") -Method POST -Body $(@{"auth" = @{"RAX-KSKEY:apiKeyCredentials" = @{"username" = $($d.cU); "apiKey" = $($d.cAPI)}}} | convertTo-Json) -ContentType application/json)
 }
-
-Function Test-PrefsContainer {
-   param (
-      [string]$container
-   )
-   if((Invoke-RestMethod -Uri "https://prefs.api.rackspacecloud.com/v1/" -Headers $AuthToken -Method Get -ContentType applicaton/json) -notcontains $container) {
-      return $false
-   }
-   else {
-      return $true
-   }
-}
-Function Check-Log {
-   if((Get-EventLog -List).Log -notcontains "DevOps") {
-      New-EventLog -LogName "DevOps" -Source "RS_rsCloudServersOpenStack"
-   }
-}
 Function Get-DevicesInEnvironment {
    param (
       [string]$dataCenter,
@@ -83,181 +66,6 @@ Function Get-DevicesInPreferences {
    catch {
       Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve devices from ServerMill preferences `n $($_.Exception.Message)"
    }
-}
-Function Find-MissingDevices {
-   param (
-      [string[]]$actualDevices,
-      [string[]]$configDevices
-   )
-   $missingDevices = @()
-   foreach($actualDevice in $actualDevices) {
-      if($configDevices -notcontains $actualDevice) {
-         $missingDevices += $actualDevice
-      }
-   }
-   write-verbose "Building list of Missing Servers"
-   foreach($missingDevice in $missingDevices) {
-      write-verbose "Find-MissingDevices $missingDevice"
-   }
-   return $missingDevices
-   
-}
-Function Update-PreferenceContainer {
-   param (
-      [string]$container,
-      [string]$body
-   )
-   $uri = ("https://prefs.api.rackspacecloud.com/v1/" + $container)
-   Invoke-RestMethod -Uri "https://prefs.api.rackspacecloud.com/v1/" -Headers $AuthToken -Body $body -Method Post -ContentType applicaton/json
-}
-Function Create-MonitoringEntity {
-   param (
-      [string]$environmentGuid,
-      [string]$dataCenter
-   )
-   
-   $monitoruri = (($catalog.access.serviceCatalog | Where-Object Name -Match "cloudMonitoring").endpoints).publicURL
-   $envServers = (Get-DevicesInEnvironment -dataCenter $dataCenter -environmentGuid $environmentGuid)
-   $entityuri = ($monitoruri, "entities" -join '/')
-   $tokenuri = ($monitoruri, "agent_tokens" -join '/')
-   try {
-      $agent_tokens = (Invoke-RestMethod -Uri $tokenuri -Method GET -Headers $AuthToken).values
-   }
-   catch {
-      Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve agent_tokens `n $tokenuri `n $($_.Exception.Message)"
-   }
-   try {
-      $entityIds = (((Invoke-RestMethod -Uri $entityuri -Method GET -Headers $AuthToken).values).agent_id)
-   }
-   catch {
-      Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve entity IDs `n $entityuri `n $($_.Exception.Message)"
-   }
-   ### create entity
-   foreach($server in $envServers) {
-      if($entityIds -notcontains $server.id) {
-         $ipobject = @{"public" = ($server.addresses.public.Addr | ? {$_ -notmatch '^2001:'}); "private" = ($server.addresses.private.Addr)}
-         $serveruri = ((((($catalog.access.serviceCatalog | Where-Object Name -Match "cloudServersOpenStack").endpoints) | ? region -eq $dataCenter).publicURL), $server.id -join '/')
-         $body = @{'label'=$server.name; 'ip_addresses'=$ipobject;'agent_id'=$server.id} | ConvertTo-Json
-         try {
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Create Montitoring Entity `n $entityuri `n $body"
-            Invoke-RestMethod -Uri $entityuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json
-         }
-         catch {
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create Montitoring Entity `n $entityuri `n $($_.Exception.Message)"
-         }
-      }
-      if($agent_tokens.label -notcontains $server.id) {
-         $body = @{'label' = $($server.id);} | ConvertTo-Json
-         try {
-            Invoke-RestMethod -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json
-            $agentToken = (((Invoke-RestMethod -Uri $tokenuri -Method GET -Headers $AuthToken).values) | ? {$_.label -eq $server.id}).token 
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Getting Agent Token `n $($server.id) `n $agentToken"
-         }
-         catch {
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to Create Token `n $tokenuri `n $($_.Exception.Message)"
-         }
-         try {
-            if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + ".mof")) {
-               Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + "*") -Force
-            }
-            & $($d.wD, $d.mR, $($environmentName + ".ps1")) -Node $server.name -ObjectGuid $server.id -MonitoringID $server.id -MonitoringToken $agentToken
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Hash Mismatch: Creating MOF file for server $($server.name) $($server.id)"
-         }
-         catch {
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create MOF file for server $server with Guid $($server.id) `n $($_.Exception.Message)"
-         }
-      }
-   }
-}
-Function Create-Mofs {
-   param (
-      [string]$environmentGuid,
-      [string]$dataCenter
-   )
-   $envServers = (Get-DevicesInEnvironment -dataCenter $dataCenter -environmentGuid $environmentGuid)
-   $checkHash = Get-FileHash $($d.wD, $d.mR, "ClientDSC.ps1" -join '\')
-   $currentHash = Get-Content $($d.wD, $d.mR, "ClientDSC.hash" -join '\')
-   $monitoruri = (($catalog.access.serviceCatalog | Where-Object Name -Match "cloudMonitoring").endpoints).publicURL
-   $tokenuri = ($monitoruri, "agent_tokens" -join '/')
-   try {
-      $agent_tokens = (Invoke-RestMethod -Uri $tokenuri -Method GET -Headers $AuthToken).values
-   }
-   catch {
-      Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve agent_tokens `n $tokenuri `n $($_.Exception.Message)"
-   }
-   <#foreach($server in $envServers) {
-      if($agent_tokens.label -notcontains $server.id) {
-         $body = @{'label' = $server.id} | ConvertTo-Json
-         try {
-            $agentToken = Invoke-RestMethod -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json
-         }
-         catch {
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve Agent Token `n $tokenuri `n $($_.Exception.Message)"
-         }
-      }
-   }#>
-  <#if($checkHash.Hash -ne $currentHash) {
-    $dataCenters = @("DFW", "ORD", "IAD")
-    try {
-      $envs = ((Invoke-RestMethod -Uri "https://prefs.api.rackspacecloud.com/v1/WinDevOps" -Method GET -Headers $AuthToken -ContentType application/json | Get-Member -MemberType NoteProperty).Name)
-    }
-    catch {
-      Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve environment guids from ServerMill `n $($_.Exception.Message)"
-    }
-    Set-Content -Path $($d.wD, $d.mR, "ClientDSC.hash" -join '\') -Value (Get-FileHash -Path $($d.wD, $d.mR, "ClientDSC.ps1" -join '\')).hash
-    foreach($dc in $dataCenters) {
-      foreach($env in $envs) {
-        $envServers = (Get-DevicesInEnvironment -dataCenter $dc -environmentGuid $env)
-        foreach($server in $envServers) {
-          $agentToken = (((Invoke-RestMethod -Uri $tokenuri -Method GET -Headers $AuthToken).values) | ? {$_.label -eq $server.id}).token
-          try {
-            if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + ".mof")) {
-              Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.id + "*") -Force
-            }
-            #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $server.id -MonitoringID $server.id -MonitoringToken $agentToken
-            & $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $server.id
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Hash Mismatch: Creating MOF file for server $($server.name) $($server.id)"
-          }
-          catch {
-            Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create MOF file for server $server with Guid $($server.id) `n $($_.Exception.Message)"
-          }
-        }
-      }
-    }
-  }#>
-   #else {
-   #Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + "*") -Force
-   $allGuids = (Invoke-RestMethod -Uri "https://prefs.api.rackspacecloud.com/v1/WinDevOps" -Method GET -Headers $AuthToken -ContentType application/json | Get-Member -MemberType NoteProperty).Name
-   $serverGuids = @()
-   foreach($eachGuid in $allGuids) {
-      $serverGuids += (Get-DevicesInPreferences -environmentGuid $eachGuid)
-   }
-   
-   
-   foreach($server in $serverGuids) {
-      #if($currentMofs -notcontains $server.id) {
-      $agentToken = (((Invoke-RestMethod -Uri $tokenuri -Method GET -Headers $AuthToken).values) | ? {$_.label -eq $server.guid}).token
-      try {
-         Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Creating MOF file for server $($server.serverName) `n  $agentToken `n $currentMofs `n $($server.id)"
-         Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $server.guid + "*") -Force
-         ## remove scriptdata and add dynamic clientdsc
-         & $($d.wD, $d.mR, $($environmentName + ".ps1")) -Node $server.serverName -ObjectGuid $server.guid -MonitoringID $server.guid -MonitoringToken $agentToken
-         #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $server.id
-      }
-      catch {
-         Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create configuration .MOF file for $($server.serverName) `n $($_.Exception.Message)"
-      }
-      #}
-   }
-   $currentMofs = ((get-item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\*") | Select-Object -Property BaseName | ? {$_ -NotMatch ".mof"}).BaseName)
-  <#foreach($currentMof in $currentMofs) {
-    if($envServers.id -notcontains $currentMof) {
-      Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "deleting $currentMof"
-      Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $currentMof + "*") -Force
-      
-    }
-  }#>
-   #}
 }
 ### compare against servers in DSC
 
@@ -410,7 +218,6 @@ Function Test-TargetResource
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
-   Check-Log
    Write-Verbose "Test-TargetResource sending call to Test-Environment using $environmentGuid $minNumberOfDevices $maxNumberOfDevices $namingConvention $dataCenter"
    $testEnvironmentResults = Test-Environment -environmentGuid $environmentGuid -minNumberOfDevices $minNumberOfDevices -maxNumberOfDevices $maxNumberOfDevices -namingConvention $namingConvention -dataCenter $dataCenter -Ensure $Ensure
    $spinUpServerList = $testEnvironmentResults.spinUpServerList
@@ -424,10 +231,6 @@ Function Test-TargetResource
    $updatePrefsList = $testEnvironmentResults.updatePrefsList
    foreach($updatePrefsList1 in $updatePrefsList) {
       Write-Verbose "Test-TargetResource updatePresList $updatePrefsList1"
-   }
-   if($Ensure -eq "Present") {
-      Create-MonitoringEntity -environmentGuid $environmentGuid -dataCenter $dataCenter
-      Create-Mofs -environmentGuid $environmentGuid -dataCenter $dataCenter
    }
    if($Ensure -eq "Absent") {
       return $false
@@ -474,7 +277,6 @@ Function Set-TargetResource
    $imageUrl = ((($catalog.access.serviceCatalog | ? {$_.name -eq "cloudImages"}).endpoints) | ? {$_.region -eq $dataCenter}).publicURL
    $images = Invoke-RestMethod -Uri $($imageUrl + "/images") -Method Get -Headers $authToken -ContentType application/json
    $image = ($images.images | ? {$_.name -eq $image}).id
-   Check-Log
    if($Ensure -eq "Present") {
       # Load credentials and local variables
       . "C:\cloud-automation\secrets.ps1"
