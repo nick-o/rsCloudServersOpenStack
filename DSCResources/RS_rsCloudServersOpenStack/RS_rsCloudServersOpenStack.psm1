@@ -67,7 +67,6 @@ Function Get-DevicesInPreferences {
       Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to retrieve devices from ServerMill preferences `n $($_.Exception.Message)"
    }
 }
-### compare against servers in DSC
 
 Function Test-Environment {
    param (
@@ -306,9 +305,6 @@ Function Set-TargetResource
       ### Spin up servers
       if($spinUpServerList) {
          write-verbose "spinUpServerList contains servers to spin up"
-         foreach($spinUpServerList1 in $spinUpServerList) {
-            write-verbose "SpinUpServer $spinUpServerList1"
-         }
          $newServerInfo = @()
          if($serverPrefsObject) {
             $newServerInfo += $serverPrefsObject
@@ -325,7 +321,7 @@ Function Set-TargetResource
                if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + ".mof")) {
                   Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + "*") -Force
                }
-               powershell.exe $($d.wD, $d.mR, $($environmentName + ".ps1")) -Node $missingServer, -ObjectGuid $createServer.server.id
+               powershell.exe $($d.wD, $d.mR, $($environmentName + ".ps1") -join '\') -Node $missingServer, -ObjectGuid $createServer.server.id
                #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $missingServer.id -MonitoringID $missingServer.id -MonitoringToken $agentToken
                
                Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Creating MOF file for server $missingServer"
