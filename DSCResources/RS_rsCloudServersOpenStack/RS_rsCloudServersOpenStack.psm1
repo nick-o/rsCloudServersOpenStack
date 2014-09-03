@@ -324,7 +324,7 @@ Function Set-TargetResource
                }
                try {
                $body = @{'label' = $($createServer.server.id);} | ConvertTo-Json
-               $tempToken = (Invoke-WebRequest -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json).Headers.'X-Object-ID'
+               $tempToken = ((Invoke-WebRequest -UseBasicParsing -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json).Headers).'X-Object-ID'
                }
                catch {
                Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create temporary monitoring token `n $($_.Exception.Message)"
