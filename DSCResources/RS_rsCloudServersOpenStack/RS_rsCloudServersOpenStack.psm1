@@ -301,7 +301,8 @@ Function Set-TargetResource
       $uri = (($catalog.access.serviceCatalog | ? name -eq "cloudServersOpenStack").endpoints | ? region -eq $dataCenter).publicURL
       $prefsUri = ("https://prefs.api.rackspacecloud.com/v1/WinDevOps", $environmentGuid, "servers" -join '/')
       $serverPrefsObject = (Invoke-RestMethod -Uri $prefsUri -Headers $AuthToken -Method Get -ContentType application/json).servers
-      
+      $monitoruri = (($catalog.access.serviceCatalog | Where-Object Name -Match "cloudMonitoring").endpoints).publicURL
+      $tokenuri = ($monitoruri, "agent_tokens" -join '/')
       ### Spin up servers
       if($spinUpServerList) {
          write-verbose "spinUpServerList contains servers to spin up"
@@ -321,8 +322,14 @@ Function Set-TargetResource
                if(Test-Path -Path ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + ".mof")) {
                   Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + "*") -Force
                }
-               powershell.exe $($d.wD, $d.mR, $($environmentName + ".ps1") -join '\') -Node $missingServer, -ObjectGuid $createServer.server.id
-               #& $(Join-Path $scriptData.Directory.scriptsRoot -ChildPath ClientDSC.ps1) -Node $server.name -ObjectGuid $missingServer.id -MonitoringID $missingServer.id -MonitoringToken $agentToken
+               try {
+               $body = @{'label' = $($createServer.server.id);} | ConvertTo-Json
+               $tempToken = ((Invoke-WebRequest -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json).Headers).'X-Object-ID'
+               }
+               catch {
+               Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create temporary monitoring token `n $($_.Exception.Message)"
+               }
+               powershell.exe $($d.wD, $d.mR, $($environmentName + ".ps1") -join '\') -Node $missingServer, -ObjectGuid $createServer.server.id -MonitoringID $createServer.server.id -MonitoringToken $tempToken
                
                Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1000 -Message "Creating MOF file for server $missingServer"
             }
@@ -334,7 +341,7 @@ Function Set-TargetResource
                ($newServerInfo | ? serverName -eq $missingServer).guid = $createServer.server.id
             }
             else {
-               $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id; "environmentName" = $environmentName}
+               $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id; "environmentName" = $environmentName; "monitoringToken" = $tempToken}
             }
             $logEntry = ("Spinning up Cloud server {0} with guid {1} {2} body {3}" -f $missingServer, $createServer.server.id, $createServer.server, $body)
             Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1002 -Message $logEntry
