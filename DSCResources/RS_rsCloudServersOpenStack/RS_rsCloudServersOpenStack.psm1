@@ -14,16 +14,21 @@ Function Get-DevicesInEnvironment {
    $returnValue = ((Invoke-RestMethod -Uri $($uri + "/servers/detail") -Method GET -Headers $AuthToken -ContentType application/json).servers)
    if ( ($returnValue.metadata | ? { $_ -like "*environmentGuid*"}).count -ne 0 )
    {
-      $returnvalue = $returnValue | ? {$_.metadata.environmentGuid -like $environmentGuid}
+      $status = @("Build", "Deleted", "Error", "Unknown")
+      $servers = $returnValue | ? {$_.metadata.environmentGuid -like $environmentGuid}
+      $resultServers = @()
+      foreach($server in $servers) {
+         if($status -notcontains $server.status) {
+            $resultServers += $server
+         }
+         
+      }
    }
    else
    {
-      $returnvalue = $null
+      $resultServers = $null
    }
-   foreach($value in $returnValue) {
-      write-verbose "Get-DevicesInEnvironment $value"
-   }
-   return $returnValue
+   return $resultServers
 }
 Function Get-DevicesInConfiguration {
    param (
@@ -323,11 +328,11 @@ Function Set-TargetResource
                   Remove-Item ("C:\Program Files\WindowsPowerShell\DscService\Configuration\" + $createServer.server.id + "*") -Force
                }
                try {
-               $body = @{'label' = $($createServer.server.id);} | ConvertTo-Json
-               $tempToken = ((Invoke-WebRequest -UseBasicParsing -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json).Headers).'X-Object-ID'
+                  $body = @{'label' = $($createServer.server.id);} | ConvertTo-Json
+                  $tempToken = ((Invoke-WebRequest -UseBasicParsing -Uri $tokenuri -Method POST -Headers $AuthToken -Body $body -ContentType application/json).Headers).'X-Object-ID'
                }
                catch {
-               Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create temporary monitoring token `n $($_.Exception.Message)"
+                  Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Error -EventId 1002 -Message "Failed to create temporary monitoring token `n $($_.Exception.Message)"
                }
                powershell.exe $($d.wD, $d.mR, $($environmentName + ".ps1") -join '\') -Node $missingServer -ObjectGuid $createServer.server.id -MonitoringID $createServer.server.id -MonitoringToken $tempToken
                
