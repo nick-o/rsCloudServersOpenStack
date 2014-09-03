@@ -14,7 +14,7 @@ Function Get-DevicesInEnvironment {
    $returnValue = ((Invoke-RestMethod -Uri $($uri + "/servers/detail") -Method GET -Headers $AuthToken -ContentType application/json).servers)
    if ( ($returnValue.metadata | ? { $_ -like "*environmentGuid*"}).count -ne 0 )
    {
-      $status = @("Build", "Deleted", "Error", "Unknown")
+      $status = @("Deleted", "Error", "Unknown")
       $servers = $returnValue | ? {$_.metadata.environmentGuid -like $environmentGuid}
       $resultServers = @()
       foreach($server in $servers) {
