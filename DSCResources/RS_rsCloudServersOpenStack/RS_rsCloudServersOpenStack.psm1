@@ -348,7 +348,7 @@ Function Set-TargetResource
             else {
                $newServerInfo += @{"serverName" = $missingServer; "guid" = $createServer.server.id; "environmentName" = $environmentName; "monitoringToken" = $tempToken;}
             }
-            $logEntry = ("Spinning up Cloud server {0} with guid {1} {2} body {3}" -f $missingServer, $createServer.server.id, $createServer.server, $body)
+            $logEntry = ("Spinning up Cloud server {0} with guid {1}" -f $missingServer, $createServer.server.id)
             Write-EventLog -LogName DevOps -Source RS_rsCloudServersOpenStack -EntryType Information -EventId 1002 -Message $logEntry
             write-verbose "spinning up server $missingServer"
             Start-Sleep -m 100
