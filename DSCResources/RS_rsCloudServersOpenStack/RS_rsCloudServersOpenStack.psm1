@@ -280,7 +280,6 @@ Function Set-TargetResource
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
    $imageUrl = ((($catalog.access.serviceCatalog | ? {$_.name -eq "cloudImages"}).endpoints) | ? {$_.region -eq $dataCenter}).publicURL
    $image = (Invoke-RestMethod -Uri $($imageUrl + "/images?name=$($image.Replace(" ","+"))") -Method Get -Headers $authToken -ContentType application/json).images.id
-   #$image = ($images.images | ? {$_.name -eq $image}).id
    if($Ensure -eq "Present") {
       # Load credentials and local variables
       . "C:\cloud-automation\secrets.ps1"
