@@ -179,7 +179,8 @@ Function Get-TargetResource
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
-      [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName 
+      [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][hashtable]$metadata
    )
    @{
         environmentGuid = $environmentGuid
@@ -218,7 +219,8 @@ Function Test-TargetResource
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
-      [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName 
+      [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][hashtable]$metadata
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
@@ -274,7 +276,8 @@ Function Set-TargetResource
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$pullServerName,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
-      [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName 
+      [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][hashtable]$metadata = @{}
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
@@ -315,7 +318,7 @@ Function Set-TargetResource
             $newServerInfo += $serverPrefsObject
          }
          foreach($missingServer in $spinUpServerList) {
-            $body = @{ "server" = @{ "name" = $missingServer; "imageRef" = $image; "flavorRef" = $nflavor; "metadata" = @{"Role" = $role; "environmentGuid" = "$environmentGuid"}; "personality" = @( @{ "path" = $path; "contents" = $Base64}; @{"path" = $secretPath; "contents" = $secretBase64})}} | convertTo-Json -Depth 3
+            $body = @{ "server" = @{ "name" = $missingServer; "imageRef" = $image; "flavorRef" = $nflavor; "metadata" = @{"Role" = $role; "environmentGuid" = "$environmentGuid"} + $metadata; "personality" = @( @{ "path" = $path; "contents" = $Base64}; @{"path" = $secretPath; "contents" = $secretBase64})}} | convertTo-Json -Depth 3
             try {
                $createServer = Invoke-RestMethod -Uri $($uri + "/servers") -Method POST -Headers $AuthToken -Body $body -ContentType application/json
             }
