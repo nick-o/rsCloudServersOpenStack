@@ -180,7 +180,7 @@ Function Get-TargetResource
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
-      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][hashtable]$metadata
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool
    )
    @{
         environmentGuid = $environmentGuid
@@ -220,7 +220,7 @@ Function Test-TargetResource
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
-      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][hashtable]$metadata
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
@@ -277,7 +277,7 @@ Function Set-TargetResource
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
-      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][hashtable]$metadata = @{}
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
@@ -312,6 +312,12 @@ Function Set-TargetResource
       $tokenuri = ($monitoruri, "agent_tokens" -join '/')
       ### Spin up servers
       if($spinUpServerList) {
+         $metadata = @{}
+         if ($F5LBPool)
+         {
+            $metadata['RackConnectLBPool'] = $F5LBPool
+         }
+
          write-verbose "spinUpServerList contains servers to spin up"
          $newServerInfo = @()
          if($serverPrefsObject) {
