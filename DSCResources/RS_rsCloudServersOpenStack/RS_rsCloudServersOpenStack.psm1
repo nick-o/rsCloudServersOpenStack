@@ -180,7 +180,8 @@ Function Get-TargetResource
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
-      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool,
+      [Parameter(Mandatory = $false)][ValidateSet('core','base','mailgun','driveclient','backup','monitoring','updates')][string[]]$ConfigOptions
    )
    @{
         environmentGuid = $environmentGuid
@@ -220,7 +221,8 @@ Function Test-TargetResource
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
-      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool,
+      [Parameter(Mandatory = $false)][ValidateSet('core','base','mailgun','driveclient','backup','monitoring','updates')][string[]]$ConfigOptions
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
@@ -277,7 +279,8 @@ Function Set-TargetResource
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$validationKey,
       [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$decryptionKey,
       [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$environmentName,
-      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool
+      [Parameter(Mandatory = $false)][ValidateNotNullOrEmpty()][string]$F5LBPool,
+      [Parameter(Mandatory = $false)][ValidateSet('core','base','mailgun','driveclient','backup','monitoring','updates')][string[]]$ConfigOptions
    )
    $Global:catalog = Get-ServiceCatalog
    $Global:AuthToken = @{"X-Auth-Token"=($catalog.access.token.id)}
@@ -316,6 +319,10 @@ Function Set-TargetResource
          if ($F5LBPool)
          {
             $metadata['RackConnectLBPool'] = $F5LBPool
+         }
+         if ($ConfigOptions)
+         {
+            $metadata['build_config'] = $ConfigOptions
          }
 
          write-verbose "spinUpServerList contains servers to spin up"
