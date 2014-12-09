@@ -322,7 +322,7 @@ Function Set-TargetResource
          }
          if ($ConfigOptions)
          {
-            $metadata['build_config'] = $ConfigOptions
+               $metadata['build_config'] = $ConfigOptions -join ","
          }
 
          write-verbose "spinUpServerList contains servers to spin up"
